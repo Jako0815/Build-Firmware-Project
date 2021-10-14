@@ -1,0 +1,71 @@
+#!/bin/bash
+Skript_Path="/usr/share/automat-oem-install/"
+
+export DIALOGRC="${Skript_Path}dialogrc"
+
+# Functions
+msg() {
+    ALL_OFF="\e[1;0m"
+    BOLD="\e[1;1m"
+    GREEN="${BOLD}\e[1;32m"
+      local mesg=$1; shift
+      printf "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}\n" "$@" >&2
+ }
+ 
+ 
+clear
+
+msg "Rescue Setup gestartet (DEV)"
+
+
+msg "Aktualisiere Packetlisten"
+# Aktualisiere System
+pacman -Syyu --noconfirm --overwrite '*'
+
+msg "Installiere Packete"
+pacman -S --noconfirm xorg-server sddm awesome xorg-xinput gstreamer gst-libav gstreamer-vaapi gst-plugins-base gst-plugins-good gtk3 nginx networkmanager webkit2gtk xf86-video-fbdev python-gobject libva pulseaudio pulseaudio-bluetooth bluez-utils python-pip
+
+
+msg "Patche die SUPER Updates...."
+
+if test -f "/boot/config.txt.pacsave"; then
+	msg "Der Dreck wurde verändert"
+	
+	rm /boot/config.txt
+	rm /boot/cmdline.txt
+
+	cp /boot/config.txt.pacsave /boot/config.txt
+	cp /boot/cmdline.txt.pacsave /boot/cmdline.txt
+
+fi
+
+
+
+
+msg "Adde automat User..."
+useradd automat
+usermod -aG video automat
+
+
+msg "Bearbeite Sysemctl Dienste..."
+systemctl enable sshd.service
+systemctl enable sddm.service
+systemctl enable NetworkManager
+systemctl enable nginx
+
+
+msg "Patche Dateisystem berechtigungen"
+# Patche Berechtigungen
+chmod a+x /home/automat/.xsession
+chown -R automat:automat /home/automat
+
+
+
+
+msg "Patche Dateien im System"
+
+sed -i 's+/usr/share/nginx/html+/data/www+g' /etc/nginx/nginx.conf
+
+
+sleep 10
+

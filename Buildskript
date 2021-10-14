@@ -1,0 +1,54 @@
+#!/bin/bash
+source Config
+
+clear 
+
+echo "Automaten Buildskript"
+echo "2021 @ J-projekt"
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+
+clear
+
+lsblk
+
+echo "Bitte Ziellaufwerk auswählen"
+echo "Ziellaufwerk sollte mindestens 16GB groß sein!"
+
+read -p "Laufwerk: /dev/" drive
+
+
+
+
+echo "Folgende Skripte wurden erkannt:"
+ls Skripte -1
+
+
+for f in Skripte/*.sh; do
+  bash "$f" ${drive}
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

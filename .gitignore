@@ -1,0 +1,17 @@
+Mount/*
+Cache/*
+Data/boot/*
+Data/config/*
+Data/image*
+Data/rescue/*
+Data/root/*
+Data/root+rescue/etc/*
+Data/root+rescue/home/*
+Data/root+rescue/mnt/*
+
+Data/root+rescue/usr/share/polkit-1
+
+
+
+
+

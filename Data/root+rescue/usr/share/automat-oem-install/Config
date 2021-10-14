@@ -1,0 +1,26 @@
+# Configuriere Den User und Root automatisch...
+USER="dev"
+FULLNAME="Developer"
+PASSWORD="dev"
+ROOTPASSWORD="dev"
+USERGROUPS="sudo"
+HOSTNAME="Automat"
+KEYMAP="de"
+TIMEZONE="Europe/Berlin"
+LOCALE="de_DE.UTF-8"
+
+
+
+# Adresse für den Internet Test
+PING_ADRESS="8.8.8.8"
+
+
+# WLAN Zugangsdaten für Drahtlosen Internet Zugang
+SSID="Wlan-SSID"
+WIFI_PSWD="Wlan-PSWD"
+
+
+
+# UNIX Zeit für den Zeitserver Test
+Test_Time=1614775100
+

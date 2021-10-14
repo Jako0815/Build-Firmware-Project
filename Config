@@ -1,0 +1,41 @@
+# Image Sektion
+
+# Image Name
+IMAGE_FILE=Manjaro-ARM-minimal-rpi4-20.12.1.img.xz
+# Image Download URL
+IMAGE_URL=https://ftp.halifax.rwth-aachen.de/osdn/storage/g/m/ma/manjaro-arm/rpi4/minimal/20.12.1/Manjaro-ARM-minimal-rpi4-20.12.1.img.xz
+
+IMAGE_LOCATION=Cache/
+IMAGE_FILE=Manjaro-ARM-minimal-rpi4-21.08.img
+
+
+IMAGE_CHECKSUM=68763c0cd7b621dc3912b6c97c56dbf1e7a93046984918741f27165072c98a23
+IMAGE_URL=https://github.com/manjaro-arm/rpi4-images/releases/download/21.08/Manjaro-ARM-minimal-rpi4-21.08.img.xz
+
+# Partition Größe 
+RESCUE_PARTITION_SIZE=8G
+ROOT_PARTITION_SIZE=8G
+IMAGE_PARTITION_SIZE=10G
+CONFIG_PARTITION_SIZE=512M
+BOOT_PARTITION_SIZE=512M
+
+
+# Namen der Partitionen
+CONFIG_PARTITION_NAME=CONFIG
+ROOT_PARTITION_NAME=ROOT
+BOOT_PARTITION_NAME=BOOT
+RESCUE_PARTITION_NAME=RESCUE
+IMAGE_PARTITION_NAME=Image
+
+
+
+
+
+
+
+#Config fürs Mounten
+
+
+MOUNT__DIR=Mount/
+DATA_DIR=Data/
+CACHE_DIR=Cache/

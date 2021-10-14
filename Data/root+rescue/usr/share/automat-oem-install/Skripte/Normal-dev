@@ -1,0 +1,124 @@
+#!/bin/bash
+Skript_Path="/usr/share/automat-oem-install/"
+
+export DIALOGRC="${Skript_Path}dialogrc"
+
+# Functions
+msg() {
+    ALL_OFF="\e[1;0m"
+    BOLD="\e[1;1m"
+    GREEN="${BOLD}\e[1;32m"
+      local mesg=$1; shift
+      printf "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}\n" "$@" >&2
+ }
+ 
+ 
+clear
+
+msg "Normales Setup gestartet (DEV)"
+
+
+msg "Aktualisiere Packetlisten"
+# Aktualisiere System
+pacman -Syyu --noconfirm --overwrite '*'
+
+msg "Installiere Packete"
+pacman -S --noconfirm xorg-server sddm awesome xorg-xinput gstreamer gst-libav gstreamer-vaapi gst-plugins-base gst-plugins-good gtk3 nginx networkmanager webkit2gtk xf86-video-fbdev python-gobject libva python-pip mariadb php php-fpm gcc tk
+
+
+msg "Datenbank Einrichten"
+
+mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
+
+systemctl start mysql
+
+
+msg "PHP Einrichten"
+
+mkdir -p /run/php-fpm
+
+systemctl enable php-fpm.service
+
+
+msg "Webserver einrichten"
+cp /etc/nginx/nginx-dev.conf /etc/nginx/nginx.conf
+
+msg "PIP Einrichten..."
+pip install websockets
+pip install mysql-connector-python
+pip install python-dateutil
+pip install pyserial
+pip install Pillow
+umask 022
+
+
+
+msg "MY Admin Einrichten..."
+mkdir -p /data/www/admin/tmp
+chmod 777 /data/www/admin/tmp
+
+
+
+mysql -e "CREATE USER 'monty'@'localhost' IDENTIFIED BY 'some_pass';"
+mysql -e "CREATE DATABASE automat"
+mysql -e "GRANT ALL PRIVILEGES ON automat.* TO 'monty'@'localhost';"
+mysql -e "FLUSH PRIVILEGES;"
+mysql -u root automat < /data/mysql/database-dev.sql
+
+
+
+
+msg "Patche die SUPER Updates...."
+
+if test -f "/boot/config.txt.pacsave"; then
+	msg "Der Dreck wurde verändert"
+	
+	rm /boot/config.txt
+	rm /boot/cmdline.txt
+
+	cp /boot/config.txt.pacsave /boot/config.txt
+	cp /boot/cmdline.txt.pacsave /boot/cmdline.txt
+
+fi
+
+if test -f "/etc/php/php.ini.pacnew"; then
+	msg "Der Dreck wurde verändert"
+
+	rm /etc/php/php.ini
+
+	cp /etc/php/php.ini.pacnew /etc/php/php.ini
+
+fi
+
+
+
+
+msg "Adde Automat User..."
+useradd automat
+usermod -aG video automat
+
+
+msg "Bearbeite Sysemctl Dienste..."
+systemctl enable sshd.service
+systemctl enable sddm.service
+systemctl enable NetworkManager
+systemctl enable nginx
+systemctl enable mariadb.service
+
+systemctl disable attach-bluetooth.service
+
+msg "Patche Dateisystem berechtigungen"
+# Patche Berechtigungen
+chmod a+x /home/automat/.xsession
+chown -R automat:automat /home/automat
+
+
+
+
+msg "Patche Dateien im System"
+
+sed -i 's+/usr/share/nginx/html+/data/www+g' /etc/nginx/nginx.conf
+
+
+sleep 10
+

@@ -1,0 +1,394 @@
+# Skript, um den Benutzer einzurichten
+Skript_Path="/usr/share/automat-oem-install/"
+
+export DIALOGRC="${Skript_Path}dialogrc"
+source "${Skript_Path}Config"
+
+
+
+#variables
+TMPDIR=/var/tmp
+SYSTEM=`inxi -M | awk '{print $6}'`
+SYSTEMPRO=`inxi -M | awk '{print $7,$8}'`
+USERGROUPS=""
+
+# Functions
+msg() {
+    ALL_OFF="\e[1;0m"
+    BOLD="\e[1;1m"
+    GREEN="${BOLD}\e[1;32m"
+      local mesg=$1; shift
+      printf "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}\n" "$@" >&2
+ }
+ 
+ create_oem_install() {
+    echo "$USER" > $TMPDIR/user
+    echo "$PASSWORD" >> $TMPDIR/password
+    echo "$PASSWORD" >> $TMPDIR/password
+    echo "$ROOTPASSWORD" >> $TMPDIR/rootpassword
+    echo "$ROOTPASSWORD" >> $TMPDIR/rootpassword
+    msg "Setting root password..."
+    passwd root < $TMPDIR/rootpassword 1> /dev/null 2>&1
+    msg "Adding user $USER..."
+    useradd -m -G wheel,sys,audio,input,video,storage,lp,network,users,power -s /bin/bash $(cat $TMPDIR/user) 1> /dev/null 2>&1
+    if [ -d /usr/share/sddm ]; then
+    cp /usr/share/sddm/faces/.face.icon /usr/share/sddm/faces/$USER.face.icon
+    fi
+    usermod -aG $USERGROUPS $(cat $TMPDIR/user) 1> /dev/null 2>&1
+    msg "Setting full name to $FULLNAME..."
+    chfn -f "$FULLNAME" $(cat $TMPDIR/user) 1> /dev/null 2>&1
+    msg "Setting password for $USER..."
+    passwd $(cat $TMPDIR/user) < $TMPDIR/password 1> /dev/null 2>&1
+    msg "Setting timezone to $TIMEZONE..."
+    timedatectl set-timezone $TIMEZONE 1> /dev/null 2>&1
+    timedatectl set-ntp true 1> /dev/null 2>&1
+    msg "Generating $LOCALE locale..."
+    sed -i s/"#$LOCALE"/"$LOCALE"/g /etc/locale.gen 1> /dev/null 2>&1
+    locale-gen 1> /dev/null 2>&1
+    localectl set-locale $LOCALE 1> /dev/null 2>&1
+    if [[ "$SYSTEM" != "Pinebook" ]]; then
+    msg "Setting keymap to $KEYMAP..."
+    localectl set-keymap $KEYMAP 1> /dev/null 2>&1
+    fi
+    if [ -f /etc/sway/inputs/default-keyboard ]; then
+    sed -i s/"us"/"$KEYMAP"/ /etc/sway/inputs/default-keyboard
+		if [[ "$KEYMAP" = "uk" ]]; then
+		sed -i s/"uk"/"gb"/ /etc/sway/inputs/default-keyboard
+		fi
+    fi
+    msg "Setting hostname to $HOSTNAME..."
+    hostnamectl set-hostname $HOSTNAME 1> /dev/null 2>&1
+    msg "Resizing partition..."
+    resize-fs 1> /dev/null 2>&1
+    #msg "Applying system settings..."
+    #systemctl disable systemd-resolved.service 1> /dev/null 2>&1
+    
+    msg "Cleaning install for unwanted files..."
+    sudo rm -rf /var/log/*
+    
+    # Remove temp files on host
+    sudo rm -rf $TMPDIR/user $TMPDIR/password $TMPDIR/rootpassword
+    
+    sleep 10
+}
+
+
+
+
+
+
+ 
+ 
+
+if test -f "${Skript_Path}RESCUE"; then
+    Start_String="System als Rescue gestartet..."
+    INSTALL_MODE="Rescue"
+else
+	Start_String="System als Normal gestartet..."
+	INSTALL_MODE="Normal"
+fi
+
+
+
+
+dialog --title "Automat Setup V1.00" --msgbox "
+@2021 J-Projekt
+Author: Jakob Pröm (jakob@j-projekt.de)
+
+Wichtig: Internet wird zur Einrichtung benötigt
+
+${Start_String}
+
+
+" 40 80
+
+
+dialog --title "Warnung" --yesno "Benutzer u. Passwort automatisch setzen? 
+WARNUNG: 
+Nur für das Development System Benutzen!" 0 0
+# 0=ja; 1=nein
+antwort=$?
+# Dialog-Bildschirm löschen
+dialog --clear
+# Ausgabe auf die Konsole
+if [ $antwort = 0 ]
+then
+   DEVSYSTEM_VAR=1
+   dialog --title "Autoconfig" --msgbox "System wird automatisch konfiguriert" 5 40
+else
+
+	DEVSYSTEM_VAR=0
+	USER=$(dialog --clear --title "Installation Abschließen" \
+	--inputbox "Enter desired username:
+	(Usernames can only be lower case)" 8 60 \
+	        3>&1 1>&2 2>&3 3>&-)
+	    if [[ "$USER" =~ [A-Z] ]] || [[ "$USER" == *['!'@#\$%^\&*()_+]* ]]; then
+	    clear
+	    msg "Configuration aborted. Username contained invalid characters. Restarting OEM script..."
+	    sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+	    fi
+	
+	if [ ! -z "$USER" ]
+	then
+		FULLNAME=$(dialog --clear --title "Installation Abschließen" \
+	    --inputbox "Enter desired Full Name for $USER:" 8 60 \
+	        3>&1 1>&2 2>&3 3>&- \
+		)
+	else 
+		clear
+		msg "Configuration aborted. Restarting OEM script..."
+		sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+		#exit 1
+	fi
+	
+	if [ ! -z "$FULLNAME" ]
+	then
+	PASSWORD=$(dialog --clear --title "Installation Abschließen" \
+	    --insecure \
+		--passwordbox "Enter new Password for $USER:" 8 60 \
+	        3>&1 1>&2 2>&3 3>&- \
+		)
+	else 
+		clear
+		msg "Configuration aborted. Restarting OEM script..."
+		sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+		#exit 1
+	fi
+	
+	if [ ! -z "$PASSWORD" ]
+	then
+	CONFIRMPASSWORD=$(dialog --clear --title "Installation Abschließen" \
+		--insecure --passwordbox "Confirm Password for $USER:" 8 60 \
+	        3>&1 1>&2 2>&3 3>&- \
+		)
+	else 
+		clear
+		msg "Configuration aborted. Restarting OEM script..."
+		sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+		#exit 1
+	fi
+	
+	if [[ "$PASSWORD" != "$CONFIRMPASSWORD" ]]; then
+	    clear
+	    msg "User passwords do not match! Restarting OEM script..."
+	    sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+	    #exit 1
+	fi
+	
+	if [ ! -z "$CONFIRMPASSWORD" ]
+	then
+	ROOTPASSWORD=$(dialog --clear --title "Installation Abschließen" \
+	    --insecure \
+		--passwordbox "Enter new Root Password:" 8 60 \
+	        3>&1 1>&2 2>&3 3>&- \
+		)
+	else 
+		clear
+		msg "Configuration aborted. Restarting OEM script..."
+		sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+		#exit 1
+	fi
+	
+	if [ ! -z "$ROOTPASSWORD" ]
+	then
+	CONFIRMROOTPASSWORD=$(dialog --clear --title "Installation Abschließen" \
+		--insecure --passwordbox "Confirm Root Password:" 8 60 \
+	        3>&1 1>&2 2>&3 3>&- \
+		)
+	else 
+		clear
+		msg "Configuration aborted. Restarting OEM script..."
+		sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+		#exit 1
+	fi
+	
+	if [[ "$ROOTPASSWORD" != "$CONFIRMROOTPASSWORD" ]]; then
+	    clear
+	    msg "Root passwords do not match! Restarting OEM script..."
+	    sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+	    #exit 1
+	fi
+	
+	if [ ! -z "$CONFIRMROOTPASSWORD" ]
+then
+let i=0
+W=()
+while read -r line; do
+    let i=$i+1
+    W+=($line "")
+done < <( timedatectl list-timezones )
+TIMEZONE=$(dialog --clear --title "Installation Abschließen" \
+    --menu "Choose your timezone!" 20 60 15 \
+        "${W[@]}" 3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	msg "Configuration aborted. Restarting OEM script..."
+	sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+	#exit 1
+fi
+
+
+
+if [ ! -z "$TIMEZONE" ]
+then
+let i=0
+W=()
+while read -r line; do
+    let i=$i+1
+    W+=($line "")
+done < <( cat /etc/locale.gen | grep "UTF-8" | tail -n +2 | awk '{print $1}' | sed -e 's/^#*//' )
+LOCALE=$(dialog --clear --title "Installation Abschließen" \
+	--menu "Choose your locale!" 20 60 15 \
+        "${W[@]}" 3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	msg "Configuration aborted. Restarting OEM script..."
+	sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+	#exit 1
+fi
+
+
+	
+fi
+
+
+if [ ! -z "$HOSTNAME" ]
+then
+dialog --clear --title "Installation Abschlließen" \
+    --yesno "Is the below information correct:
+    Username = $USER
+    Additional usergroups = $USERGROUPS
+    Full Name = $FULLNAME
+    Password for $USER = (password hidden)
+    Password for root = (password hidden)
+    Timezone = $TIMEZONE
+    Locale = $LOCALE
+    Hostname = $HOSTNAME
+    
+    Developer System = $DEVSYSTEM_VAR
+    Installationmode = $INSTALL_MODE" 20 60 \
+    3>&1 1>&2 2>&3 3>&-
+else
+    clear
+    msg "Configuration aborted. Restarting OEM script..."
+    sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install
+    #exit 1
+fi
+
+
+
+response=$?
+case $response in
+   0) clear; msg "Proceeding....";;
+   1) clear; msg "Configuration aborted. Restarting OEM script..."; sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install;;
+   255) clear; msg "Configuration aborted. Restarting OEM script..."; sleep 5 && exec bash /usr/share/automat-oem-install/automat-oem-install;;
+esac
+
+
+create_oem_install
+
+dialog --title "Automat Setup V1.00" --msgbox "
+Internet wird zur Einrichtung benötigt,
+dies wird jetzt überprüft. Entweder per
+Netzwerk (eth0) oder mit WLAN (wlan0) verbinden.
+SSID und Passwort müssen in der Config hinterlegt werden
+
+WLAN-SSID: ${SSID}
+
+
+" 40 80
+
+clear
+msg "Teste Internet..."
+while ! ping -c 1 -n -w 1 ${PING_ADRESS} &> /dev/null
+do
+    printf "%c" "."
+    sleep 1
+done
+printf "\n%s\n"  "Internet ist verfügbar"
+
+
+msg "Prüfe Uhrzeit..."
+
+while ! [ $(date +%s) -gt $Test_Time ]
+do
+    printf "%c" "."
+    sleep 1
+done
+
+msg "Uhrzeit passt"
+
+
+
+if test -f "${Skript_Path}RESCUE"; then
+	msg "Rescue Installation Starten"
+	sleep 2
+	if [[ "$DEVSYSTEM_VAR" == 1 ]]; then
+		bash "${Skript_Path}Skripte/Rescue-dev"
+	else
+		bash "${Skript_Path}Skripte/Rescue"
+	fi
+else
+	msg "Normale Installation Starten"
+	sleep 2
+	if [[ "$DEVSYSTEM_VAR" == 1 ]]; then
+		bash "${Skript_Path}Skripte/Normal-dev"
+	else
+		bash "${Skript_Path}Skripte/Normal"
+	fi
+fi
+
+sleep 1
+
+
+# Bildschirm löschen
+clear
+msg "Configuration complete. Cleaning up..."
+mv /usr/lib/systemd/system/getty@.service.bak /usr/lib/systemd/system/getty@.service
+rm /root/.bash_profile
+sed -i s/"PermitRootLogin yes"/"#PermitRootLogin prohibit-password"/g /etc/ssh/sshd_config
+sed -i s/"PermitEmptyPasswords yes"/"#PermitEmptyPasswords no"/g /etc/ssh/sshd_config
+pacman -Rsn manjaro-arm-oem-install --noconfirm 1> /dev/null 2>&1
+
+if [ -f /usr/bin/sddm ]; then
+systemctl enable sddm 1> /dev/null 2>&1
+elif [ -f /usr/bin/lightdm ]; then
+systemctl enable lightdm 1> /dev/null 2>&1
+elif [ -f /usr/bin/gdm ]; then
+systemctl enable gdm 1> /dev/null 2>&1
+elif [ -f /usr/bin/greetd ]; then
+systemctl enable greetd 1> /dev/null 2>&1
+fi
+
+
+dialog --title "Warnung" --yesno "Jetzt die Partition wechseln?" 0 0
+# 0=ja; 1=nein
+antwort=$?
+# Dialog-Bildschirm löschen
+dialog --clear
+# Ausgabe auf die Konsole
+if [ $antwort = 0 ]
+then
+	if test -f "${Skript_Path}RESCUE"; then
+		msg "System als Rescue gestartet..."
+    	sed -i 's+RESCUE+ROOT+g' /boot/cmdline.txt
+	else
+		msg "System als Normal gestartet..."
+		sed -i 's+ROOT+RESCUE+g' /boot/cmdline.txt
+	fi
+fi
+
+
+msg "Rebooting in 5 seconds..."
+sleep 1
+echo "4..."
+sleep 1
+echo "3..."
+sleep 1
+echo "2..."
+sleep 1
+echo "1..."
+sleep 1
+reboot
